@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Bullet Hell</title>
+    <style>
+        /* รีเซ็ตค่าเริ่มต้น */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: #050510;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 600px;
+            height: 800px;
+            box-shadow: 0 0 40px rgba(102, 252, 241, 0.3);
+            border: 2px solid #1f2833;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #0b0c10;
+        }
+
+        canvas#gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* เลเยอร์ UI ตอนเล่นเกม */
+        #uiLayer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            padding: 20px;
+            display: none; /* ซ่อนตอนอยู่หน้าเมนู */
+        }
+
+        #scoreDisplay {
+            font-size: 24px; font-weight: bold; color: #66fcf1;
+            text-shadow: 0 0 10px #66fcf1; margin-bottom: 10px;
+        }
+
+        #hpBarContainer {
+            width: 200px; height: 15px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid #c5c6c7; border-radius: 8px; overflow: hidden;
+        }
+
+        #hpBar {
+            width: 100%; height: 100%;
+            background-color: #45a29e;
+            box-shadow: 0 0 10px #45a29e;
+            transition: width 0.2s ease, background-color 0.2s ease;
+        }
+
+        #weaponLevelDisplay {
+            margin-top: 10px; font-size: 16px; color: #ffeb3b; text-shadow: 0 0 8px #ffeb3b;
+        }
+
+        /* หน้าจอ Main Menu */
+        #mainMenu {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 5, 16, 0.95);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 20;
+        }
+
+        #mainMenu h1 {
+            font-size: 52px; color: #66fcf1; text-shadow: 0 0 20px #66fcf1;
+            margin-bottom: 5px; text-align: center;
+        }
+        #mainMenu h2 { font-size: 20px; color: #c5c6c7; margin-bottom: 30px; letter-spacing: 2px; }
+
+        .ship-selection { display: flex; gap: 20px; margin-bottom: 40px; }
+        .ship-card {
+            border: 2px solid #333; border-radius: 12px; padding: 20px 15px;
+            text-align: center; cursor: pointer; transition: all 0.3s ease;
+            background: rgba(255,255,255,0.05); width: 160px;
+        }
+        .ship-card:hover { background: rgba(255,255,255,0.1); }
+        .ship-card.selected { border-color: #66fcf1; box-shadow: 0 0 20px rgba(102, 252, 241, 0.5); background: rgba(102, 252, 241, 0.1); }
+        .ship-card canvas { margin-bottom: 10px; }
+        .ship-card h3 { margin-bottom: 10px; font-size: 18px; }
+        .ship-card p { font-size: 14px; color: #aaa; line-height: 1.5; }
+
+        /* ปุ่มต่างๆ */
+        .btn {
+            padding: 15px 40px; font-size: 20px; font-weight: bold; font-family: inherit;
+            background: transparent; border: 2px solid #66fcf1; color: #66fcf1;
+            border-radius: 5px; cursor: pointer; text-shadow: 0 0 5px #66fcf1;
+            transition: all 0.3s ease; text-transform: uppercase;
+        }
+        .btn:hover { background: #66fcf1; color: #050510; box-shadow: 0 0 20px #66fcf1; transform: scale(1.05); }
+
+        /* หน้าจอ Game Over */
+        #gameOverScreen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            z-index: 10;
+        }
+        #gameOverScreen h1 { font-size: 64px; color: #ff003c; text-shadow: 0 0 20px #ff003c; margin-bottom: 10px; }
+        #gameOverScreen p { font-size: 24px; color: #fff; margin-bottom: 40px; }
+        
+    </style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <canvas id="gameCanvas" width="600" height="800"></canvas>
+    
+    <div id="uiLayer">
+        <div id="scoreDisplay">SCORE: <span id="scoreValue">0</span></div>
+        <div id="hpBarContainer"><div id="hpBar"></div></div>
+        <div id="weaponLevelDisplay">WEAPON LV: <span id="weaponLvValue">1</span></div>
+    </div>
+
+    <!-- Main Menu สำหรับเลือกยาน -->
+    <div id="mainMenu">
+        <h1>NEON BULLET HELL</h1>
+        <h2>- SELECT YOUR FIGHTER -</h2>
+        <div class="ship-selection">
+            <div class="ship-card selected" data-ship="1">
+                <canvas id="ship1Preview" width="80" height="80"></canvas>
+                <h3 style="color:#66fcf1">STRIKER</h3>
+                <p>Speed: ★★★<br>Armor: ★★★</p>
+            </div>
+            <div class="ship-card" data-ship="2">
+                <canvas id="ship2Preview" width="80" height="80"></canvas>
+                <h3 style="color:#ffeb3b">PHANTOM</h3>
+                <p>Speed: ★★★★★<br>Armor: ★☆☆</p>
+            </div>
+            <div class="ship-card" data-ship="3">
+                <canvas id="ship3Preview" width="80" height="80"></canvas>
+                <h3 style="color:#39ff14">TITAN</h3>
+                <p>Speed: ★☆☆<br>Armor: ★★★★★</p>
+            </div>
+        </div>
+        <button id="startBtn" class="btn">START MISSION</button>
+    </div>
+    
+    <div id="gameOverScreen">
+        <h1>GAME OVER</h1>
+        <p>FINAL SCORE: <span id="finalScore">0</span></p>
+        <button id="restartBtn" class="btn">MAIN MENU</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const uiLayer = document.getElementById('uiLayer');
+    const mainMenu = document.getElementById('mainMenu');
+    const scoreValueEl = document.getElementById('scoreValue');
+    const hpBarEl = document.getElementById('hpBar');
+    const weaponLvValueEl = document.getElementById('weaponLvValue');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const finalScoreEl = document.getElementById('finalScore');
+    
+    let gameActive = false;
+    let score = 0;
+    let frameCount = 0;
+    let selectedShipType = 1;
+
+    let player;
+    let playerBullets = [];
+    let enemyBullets = [];
+    let enemies = [];
+    let items = [];
+    let particles = [];
+    let stars = [];
+    let animationId; // สำหรับการหยุด/เริ่ม loop
+
+    const keys = {};
+    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+    window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+    // --- Asset Drawing Functions (ทำให้วาดซ้ำได้ในตัวอย่างและในเกม) --- //
+    
+    function drawShipStriker(context, x, y, size) {
+        context.fillStyle = '#66fcf1';
+        context.beginPath();
+        context.moveTo(x, y - size/2);
+        context.lineTo(x - size/2, y + size/2);
+        context.lineTo(x, y + size/4);
+        context.lineTo(x + size/2, y + size/2);
+        context.closePath();
+        context.shadowBlur = 15; context.shadowColor = '#66fcf1'; context.fill(); context.shadowBlur = 0;
+    }
+
+    function drawShipPhantom(context, x, y, size) {
+        context.fillStyle = '#ffeb3b';
+        context.beginPath();
+        // ปีกคู่แบบล้ำๆ (Twin-hull)
+        context.moveTo(x - size/2, y + size/2);
+        context.lineTo(x - size/4, y - size/2);
+        context.lineTo(x, y - size/4);
+        context.lineTo(x + size/4, y - size/2);
+        context.lineTo(x + size/2, y + size/2);
+        context.lineTo(x + size/4, y + size/3);
+        context.lineTo(x - size/4, y + size/3);
+        context.closePath();
+        context.shadowBlur = 15; context.shadowColor = '#ffeb3b'; context.fill(); context.shadowBlur = 0;
+    }
+
+    function drawShipTitan(context, x, y, size) {
+        context.fillStyle = '#39ff14';
+        context.beginPath();
+        // ยานถัง หนาๆ อ้วนๆ (Shield-like)
+        context.moveTo(x - size/2, y - size/4);
+        context.lineTo(x + size/2, y - size/4);
+        context.lineTo(x + size/3, y + size/2);
+        context.lineTo(x - size/3, y + size/2);
+        context.closePath();
+        context.shadowBlur = 15; context.shadowColor = '#39ff14'; context.fill(); context.shadowBlur = 0;
+        // ห้องคนขับ
+        context.fillStyle = '#222';
+        context.fillRect(x - size/6, y - size/6, size/3, size/3);
+    }
+
+    // วาด Preview ยานในเมนู
+    function renderPreviews() {
+        const c1 = document.getElementById('ship1Preview').getContext('2d');
+        const c2 = document.getElementById('ship2Preview').getContext('2d');
+        const c3 = document.getElementById('ship3Preview').getContext('2d');
+        drawShipStriker(c1, 40, 40, 50);
+        drawShipPhantom(c2, 40, 40, 50);
+        drawShipTitan(c3, 40, 40, 50);
+    }
+    renderPreviews();
+
+    // Event เลือกยาน
+    document.querySelectorAll('.ship-card').forEach(card => {
+        card.addEventListener('click', () => {
+            document.querySelectorAll('.ship-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedShipType = parseInt(card.getAttribute('data-ship'));
+        });
+    });
+
+    document.getElementById('startBtn').addEventListener('click', () => {
+        mainMenu.style.display = 'none';
+        uiLayer.style.display = 'block';
+        initGame(selectedShipType);
+    });
+
+    document.getElementById('restartBtn').addEventListener('click', () => {
+        gameOverScreen.style.display = 'none';
+        uiLayer.style.display = 'none';
+        mainMenu.style.display = 'flex';
+        cancelAnimationFrame(animationId);
+    });
+
+    /**
+     * คลาส Player วาไรตี้
+     */
+    class Player {
+        constructor(type) {
+            this.type = type;
+            this.x = canvas.width / 2;
+            this.y = canvas.height - 80;
+            this.width = 40; this.height = 40;
+            this.hitboxRadius = 4;
+            this.weaponLevel = 1;
+            this.shootCooldown = 0;
+
+            if (type === 1) { // Striker: สมดุล
+                this.speed = 6; this.maxHp = 100; this.shootDelay = 8; this.color = '#66fcf1';
+            } else if (type === 2) { // Phantom: เร็ว ยิงถี่ เลือดน้อย
+                this.speed = 8.5; this.maxHp = 60; this.shootDelay = 5; this.color = '#ffeb3b';
+            } else if (type === 3) { // Titan: ช้า เลือดเยอะ
+                this.speed = 4; this.maxHp = 180; this.shootDelay = 10; this.color = '#39ff14';
+            }
+            this.hp = this.maxHp;
+        }
+
+        update() {
+            if (keys['arrowleft'] || keys['a']) this.x -= this.speed;
+            if (keys['arrowright'] || keys['d']) this.x += this.speed;
+            if (keys['arrowup'] || keys['w']) this.y -= this.speed;
+            if (keys['arrowdown'] || keys['s']) this.y += this.speed;
+
+            this.x = Math.max(this.width/2, Math.min(canvas.width - this.width/2, this.x));
+            this.y = Math.max(this.height/2, Math.min(canvas.height - this.height/2, this.y));
+
+            if (this.shootCooldown > 0) this.shootCooldown--;
+            if (keys[' '] && this.shootCooldown <= 0) {
+                this.shoot();
+                this.shootCooldown = this.shootDelay;
+            }
+        }
+
+        shoot() {
+            const speed = -15; 
+            const c = this.color;
+            if (this.weaponLevel === 1) {
+                playerBullets.push(new Bullet(this.x, this.y - 20, 0, speed, c, false));
+            } else if (this.weaponLevel === 2) {
+                playerBullets.push(new Bullet(this.x - 10, this.y - 15, -2, speed, c, false));
+                playerBullets.push(new Bullet(this.x + 10, this.y - 15, 2, speed, c, false));
+            } else {
+                playerBullets.push(new Bullet(this.x, this.y - 20, 0, speed, c, false));
+                playerBullets.push(new Bullet(this.x - 15, this.y - 10, -2.5, speed, c, false));
+                playerBullets.push(new Bullet(this.x + 15, this.y - 10, 2.5, speed, c, false));
+                if (this.type === 2) { // Phantom ยิง 5 แฉกได้
+                    playerBullets.push(new Bullet(this.x - 25, this.y - 5, -5, speed, c, false));
+                    playerBullets.push(new Bullet(this.x + 25, this.y - 5, 5, speed, c, false));
+                }
+            }
+        }
+
+        takeDamage(amount) {
+            this.hp -= amount;
+            if (this.hp <= 0) {
+                this.hp = 0; gameActive = false; showGameOver();
+                createExplosion(this.x, this.y, this.color, 50);
+            }
+            updateUI();
+        }
+
+        heal(amount) { this.hp = Math.min(this.maxHp, this.hp + amount); updateUI(); }
+        upgradeWeapon() {
+            if (this.weaponLevel < 3) this.weaponLevel++;
+            else score += 500;
+            updateUI();
+        }
+
+        draw() {
+            if (this.type === 1) drawShipStriker(ctx, this.x, this.y, this.width);
+            else if (this.type === 2) drawShipPhantom(ctx, this.x, this.y, this.width);
+            else drawShipTitan(ctx, this.x, this.y, this.width);
+
+            // Hitbox
+            ctx.fillStyle = '#ff003c'; ctx.beginPath();
+            ctx.arc(this.x, this.y, this.hitboxRadius, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+
+    class Bullet {
+        constructor(x, y, vx, vy, color, isEnemy) {
+            this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.color = color;
+            this.isEnemy = isEnemy; this.radius = isEnemy ? 5 : 4;
+        }
+        update() { this.x += this.vx; this.y += this.vy; }
+        draw() {
+            ctx.fillStyle = this.color; ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 8; ctx.shadowColor = this.color; ctx.fill(); ctx.shadowBlur = 0;
+            ctx.fillStyle = '#fff'; ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius * 0.5, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+
+    /**
+     * คลาส Enemy ดีไซน์หลากหลาย
+     */
+    class Enemy {
+        constructor(x, y, type) {
+            this.x = x; this.y = y; this.type = type;
+            this.timer = 0;
+            
+            // ตั้งค่า Status และรูปลักษณ์ตาม Type
+            if (type === 1) { // Scout: เครื่องบินเล็กสีแดง เร็ว
+                this.hp = 15; this.color = '#ff3333'; this.speedY = 2.5; this.radius = 15;
+            } else if (type === 2) { // Cruiser: ยานรบสีม่วง เลือดเยอะ ยิงกระจาย
+                this.hp = 40; this.color = '#b026ff'; this.speedY = 0.8; this.radius = 25;
+            } else if (type === 3) { // Spinner: ดาวกระจายมฤตยู หมุนตัวยิงเกลียว
+                this.hp = 60; this.color = '#ff00c8'; this.speedY = 0.5; this.radius = 30;
+            } else if (type === 4) { // Bomber: ใหญ่มาก สีส้ม ยิงแผ่
+                this.hp = 100; this.color = '#ff9900'; this.speedY = 0.3; this.radius = 40;
+            }
+            this.maxHp = this.hp;
+        }
+
+        update() {
+            this.y += this.speedY;
+            this.timer++;
+
+            if (this.type === 1 && this.timer % 70 === 0) this.shootTarget(player, 4);
+            else if (this.type === 2 && this.timer % 100 === 0) this.shootRadial(8, 3);
+            else if (this.type === 3 && this.timer % 10 === 0) this.shootSpiral();
+            else if (this.type === 4 && this.timer % 120 === 0) this.shootArc(10);
+        }
+
+        shootTarget(target, speed) {
+            const angle = Math.atan2(target.y - this.y, target.x - this.x);
+            enemyBullets.push(new Bullet(this.x, this.y, Math.cos(angle)*speed, Math.sin(angle)*speed, '#ff003c', true));
+        }
+        shootRadial(amount, speed) {
+            for (let i = 0; i < amount; i++) {
+                const angle = (Math.PI * 2 / amount) * i;
+                enemyBullets.push(new Bullet(this.x, this.y, Math.cos(angle)*speed, Math.sin(angle)*speed, this.color, true));
+            }
+        }
+        shootSpiral() {
+            const speed = 3; const angle = this.timer * 0.15;
+            enemyBullets.push(new Bullet(this.x, this.y, Math.cos(angle)*speed, Math.sin(angle)*speed, this.color, true));
+            enemyBullets.push(new Bullet(this.x, this.y, Math.cos(angle+Math.PI)*speed, Math.sin(angle+Math.PI)*speed, this.color, true));
+        }
+        shootArc(amount) {
+            const speed = 2.5;
+            const startAngle = Math.PI * 0.2; const endAngle = Math.PI * 0.8;
+            for (let i = 0; i < amount; i++) {
+                const angle = startAngle + (endAngle - startAngle) * (i / (amount - 1));
+                enemyBullets.push(new Bullet(this.x, this.y, Math.cos(angle)*speed, Math.sin(angle)*speed, '#ff9900', true));
+            }
+        }
+
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.shadowBlur = 15; ctx.shadowColor = this.color;
+            ctx.beginPath();
+            
+            // วาดรูปร่างต่างๆ ตาม Type
+            if (this.type === 1) { // ลูกศรลง
+                ctx.moveTo(this.x, this.y + this.radius);
+                ctx.lineTo(this.x - this.radius, this.y - this.radius);
+                ctx.lineTo(this.x + this.radius, this.y - this.radius);
+            } else if (this.type === 2) { // เพชร (Diamond)
+                ctx.moveTo(this.x, this.y - this.radius);
+                ctx.lineTo(this.x + this.radius, this.y);
+                ctx.lineTo(this.x, this.y + this.radius);
+                ctx.lineTo(this.x - this.radius, this.y);
+            } else if (this.type === 3) { // ดาวหมุน
+                const spikes = 5;
+                for(let i=0; i<spikes*2; i++) {
+                    const r = (i%2==0) ? this.radius : this.radius/2;
+                    const a = (i * Math.PI / spikes) + (this.timer * 0.05);
+                    if(i==0) ctx.moveTo(this.x + r*Math.cos(a), this.y + r*Math.sin(a));
+                    else ctx.lineTo(this.x + r*Math.cos(a), this.y + r*Math.sin(a));
+                }
+            } else if (this.type === 4) { // ยานอ้วนๆ มีปีกข้าง
+                ctx.arc(this.x, this.y, this.radius * 0.7, 0, Math.PI*2);
+                ctx.rect(this.x - this.radius, this.y - this.radius*0.3, this.radius*2, this.radius*0.6);
+            }
+            
+            ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+
+            // หลอดเลือด
+            const hpRatio = this.hp / this.maxHp;
+            ctx.fillStyle = 'red'; ctx.fillRect(this.x - this.radius, this.y - this.radius - 10, this.radius*2, 4);
+            ctx.fillStyle = '#0f0'; ctx.fillRect(this.x - this.radius, this.y - this.radius - 10, (this.radius*2) * hpRatio, 4);
+        }
+    }
+
+    class Item {
+        constructor(x, y, type) {
+            this.x = x; this.y = y; this.type = type;
+            this.radius = 12; this.vy = 1.5;
+            this.color = type === 'heal' ? '#39ff14' : '#ffea00';
+            this.pulse = 0;
+        }
+        update() { this.y += this.vy; this.pulse += 0.1; }
+        draw() {
+            const dr = this.radius + Math.sin(this.pulse) * 3;
+            ctx.fillStyle = this.color; ctx.shadowBlur = 15; ctx.shadowColor = this.color;
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y - dr); ctx.lineTo(this.x + dr, this.y);
+            ctx.lineTo(this.x, this.y + dr); ctx.lineTo(this.x - dr, this.y);
+            ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+            ctx.fillStyle = '#000'; ctx.font = '14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(this.type === 'heal' ? 'H' : 'U', this.x, this.y);
+        }
+    }
+
+    class Particle {
+        constructor(x, y, color) {
+            this.x = x; this.y = y; this.color = color;
+            const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 5 + 2;
+            this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed;
+            this.life = 1.0; this.decay = Math.random() * 0.03 + 0.02;
+            this.radius = Math.random() * 3 + 1;
+        }
+        update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
+        draw() {
+            ctx.globalAlpha = Math.max(0, this.life);
+            ctx.fillStyle = this.color; ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    class Star {
+        constructor() {
+            this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height;
+            this.radius = Math.random() * 1.5; this.vy = this.radius * 2;
+            this.alpha = Math.random() * 0.8 + 0.2;
+        }
+        update() {
+            this.y += this.vy;
+            if (this.y > canvas.height) { this.y = 0; this.x = Math.random() * canvas.width; }
+        }
+        draw() {
+            ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+
+    function createExplosion(x, y, color, amount) {
+        for (let i = 0; i < amount; i++) particles.push(new Particle(x, y, color));
+    }
+
+    function circleCollision(x1, y1, r1, x2, y2, r2) {
+        return Math.sqrt((x1-x2)**2 + (y1-y2)**2) < r1 + r2;
+    }
+
+    function spawnEnemies() {
+        const sr = Math.max(25, 80 - Math.floor(score / 300)); 
+        if (frameCount % sr === 0) {
+            const x = Math.random() * (canvas.width - 60) + 30;
+            let type = 1;
+            const rand = Math.random();
+            // ยิ่งคะแนนเยอะ ศัตรูโหดๆยิ่งมีโอกาสเกิด
+            if (score > 500 && rand > 0.4) type = 2;
+            if (score > 1000 && rand > 0.7) type = 3;
+            if (score > 1500 && rand > 0.85) type = 4;
+
+            enemies.push(new Enemy(x, -30, type));
+        }
+    }
+
+    function updateUI() {
+        scoreValueEl.innerText = score;
+        const p = (player.hp / player.maxHp) * 100;
+        hpBarEl.style.width = `${p}%`;
+        hpBarEl.style.backgroundColor = p < 30 ? '#ff003c' : '#45a29e';
+        weaponLvValueEl.innerText = player.weaponLevel === 3 ? 'MAX' : player.weaponLevel;
+    }
+
+    function showGameOver() {
+        finalScoreEl.innerText = score;
+        gameOverScreen.style.display = 'flex';
+    }
+
+    function initGame(shipSelected) {
+        player = new Player(shipSelected);
+        playerBullets = []; enemyBullets = []; enemies = []; items = []; particles = [];
+        stars = Array.from({length: 100}, () => new Star());
+        
+        score = 0; frameCount = 0; gameActive = true;
+        gameOverScreen.style.display = 'none';
+        
+        updateUI();
+        gameLoop();
+    }
+
+    function gameLoop() {
+        if (!gameActive) return;
+        frameCount++;
+        
+        player.update();
+        spawnEnemies();
+        stars.forEach(s => s.update());
+
+        for (let i = playerBullets.length - 1; i >= 0; i--) {
+            let b = playerBullets[i]; b.update();
+            if (b.y < -10 || b.y > canvas.height + 10 || b.x < -10 || b.x > canvas.width + 10) playerBullets.splice(i, 1);
+        }
+
+        for (let i = enemyBullets.length - 1; i >= 0; i--) {
+            let b = enemyBullets[i]; b.update();
+            if (b.y < -10 || b.y > canvas.height + 10 || b.x < -10 || b.x > canvas.width + 10) enemyBullets.splice(i, 1);
+        }
+
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            let e = enemies[i]; e.update();
+            if (e.y > canvas.height + 50) enemies.splice(i, 1);
+        }
+
+        for (let i = items.length - 1; i >= 0; i--) {
+            let it = items[i]; it.update();
+            if (it.y > canvas.height + 20) items.splice(i, 1);
+        }
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i]; p.update();
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        // Collisions
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            let e = enemies[i];
+            for (let j = playerBullets.length - 1; j >= 0; j--) {
+                let b = playerBullets[j];
+                if (circleCollision(e.x, e.y, e.radius, b.x, b.y, b.radius)) {
+                    e.hp -= (player.type === 2 ? 8 : (player.type === 3 ? 20 : 15)); // ดาเมจตามปืนยาน
+                    playerBullets.splice(j, 1);
+                    createExplosion(b.x, b.y, e.color, 3);
+
+                    if (e.hp <= 0) {
+                        score += e.type * 50; updateUI();
+                        createExplosion(e.x, e.y, e.color, 20);
+                        if (Math.random() < 0.20) items.push(new Item(e.x, e.y, Math.random() < 0.4 ? 'heal' : 'upgrade'));
+                        enemies.splice(i, 1); break;
+                    }
+                }
+            }
+        }
+
+        for (let i = enemyBullets.length - 1; i >= 0; i--) {
+            let b = enemyBullets[i];
+            if (circleCollision(player.x, player.y, player.hitboxRadius, b.x, b.y, b.radius)) {
+                player.takeDamage(10);
+                createExplosion(b.x, b.y, '#ff003c', 5);
+                enemyBullets.splice(i, 1);
+            }
+        }
+        
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            let e = enemies[i];
+            if (circleCollision(player.x, player.y, player.hitboxRadius + 10, e.x, e.y, e.radius)) {
+                player.takeDamage(20); e.hp = 0;
+                createExplosion(e.x, e.y, e.color, 20);
+                enemies.splice(i, 1);
+            }
+        }
+
+        for (let i = items.length - 1; i >= 0; i--) {
+            let it = items[i];
+            if (circleCollision(player.x, player.y, player.width/2, it.x, it.y, it.radius)) {
+                if (it.type === 'heal') player.heal(30); else player.upgradeWeapon();
+                createExplosion(it.x, it.y, it.color, 10); items.splice(i, 1);
+            }
+        }
+
+        // Render
+        ctx.fillStyle = '#0b0c10'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        stars.forEach(s => s.draw());
+        items.forEach(i => i.draw());
+        enemies.forEach(e => e.draw());
+        enemyBullets.forEach(b => b.draw());
+        playerBullets.forEach(b => b.draw());
+        particles.forEach(p => p.draw());
+        player.draw();
+
+        animationId = requestAnimationFrame(gameLoop);
+    }
+</script>
+
+</body>
+</html>
