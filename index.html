@@ -43,10 +43,34 @@
             </div>
             <p id="draftWaitText" style="display: none; margin-top: 20px; color: #ffeb3b; text-align: center;">Waiting for ally...</p>
         </div>
+
+        <div id="mobileControls" style="display: none; position: absolute; bottom: 20px; left: 0; width: 100%; height: 120px; pointer-events: none;">
+            <div id="joystickBase" style="position: absolute; left: 30px; bottom: 10px; width: 100px; height: 100px; background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(102, 252, 241, 0.5); border-radius: 50%; pointer-events: auto; touch-action: none;">
+                <div id="joystickStick" style="position: absolute; left: 25px; top: 25px; width: 50px; height: 50px; background: rgba(102, 252, 241, 0.5); border-radius: 50%; pointer-events: none;"></div>
+            </div>
+            <button id="shootBtn" style="position: absolute; right: 30px; bottom: 10px; width: 100px; height: 100px; background: rgba(255, 0, 60, 0.2); border: 2px solid rgba(255, 0, 60, 0.6); border-radius: 50%; color: #fff; font-weight: bold; font-size: 16px; pointer-events: auto; touch-action: none;">FIRE</button>
+        </div>
+    </div>
+
+    <!-- Control Menu (First Screen) -->
+    <div id="controlMenu">
+        <h1>NEON BULLET HELL</h1>
+        <h2>CHOOSE YOUR CONTROLS</h2>
+        <div class="control-selection" style="display: flex; gap: 20px; justify-content: center; margin-bottom: 30px;">
+            <div class="control-card selected" data-control="pc" style="padding: 20px 30px; border: 2px solid #333; cursor: pointer; border-radius: 8px; text-align: center;">
+                <h3 style="color:#fff; margin:0; font-size: 20px;">💻 PC / KEYBOARD</h3>
+                <p style="font-size:12px; color:#aaa; margin:10px 0 0;">WASD or Arrows, SPACE to shoot</p>
+            </div>
+            <div class="control-card" data-control="mobile" style="padding: 20px 30px; border: 2px solid #333; cursor: pointer; border-radius: 8px; text-align: center;">
+                <h3 style="color:#fff; margin:0; font-size: 20px;">📱 MOBILE / TOUCH</h3>
+                <p style="font-size:12px; color:#aaa; margin:10px 0 0;">Drag ship to move, Auto-shoot</p>
+            </div>
+        </div>
+        <button id="confirmControlBtn" class="btn" style="padding: 15px 30px; font-size: 20px;">CONTINUE TO LOBBY</button>
     </div>
 
     <!-- Main Menu -->
-    <div id="mainMenu">
+    <div id="mainMenu" style="display: none;">
         <h1>NEON BULLET HELL</h1>
         <h2>CO-OP MULTIPLAYER</h2>
         <div class="ship-selection">
@@ -66,7 +90,6 @@
                 <p>Speed: ★☆☆<br>Armor: ★★★★★</p>
             </div>
         </div>
-
         <h2 style="font-size: 16px; margin-top: 10px; color: #ffeb3b;">CHOOSE WEAPON MODULE</h2>
         <div class="weapon-selection">
             <div class="weapon-card selected" data-weapon="1"><div>STANDARD</div><span>Straight shots</span></div>

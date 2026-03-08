@@ -66,7 +66,7 @@ function handleNetworkData(data) {
             if (players['p2']) {
                 players['p2'].x = data.px;
                 players['p2'].y = data.py;
-                if (data.shoot && players['p2'].shootCooldown <= 0) {
+                if (data.shoot && (players['p2'].shootCooldown <= 0 || players['p2'].weaponType === 3)) {
                     players['p2'].shoot();
                     players['p2'].shootCooldown = players['p2'].shootDelay;
                 }
@@ -86,41 +86,62 @@ function handleNetworkData(data) {
                 players['p1'].weaponLevel = data.p1.wl;
                 players['p1'].weaponExp = data.p1.wexp;
                 players['p1'].weaponMaxExp = data.p1.wmx;
+                players['p1'].isShootingLaser = data.p1.isShootingLaser;
+                players['p1'].laserHeat = data.p1.laserHeat;
+                players['p1'].laserOverheated = data.p1.laserOverheated;
             }
             if (players['p2']) {
                 players['p2'].hp = data.p2.hp; players['p2'].maxHp = data.p2.maxHp;
                 players['p2'].weaponLevel = data.p2.wl;
                 players['p2'].weaponExp = data.p2.wexp;
                 players['p2'].weaponMaxExp = data.p2.wmx;
+                players['p2'].isShootingLaser = data.p2.isShootingLaser;
+                players['p2'].laserHeat = data.p2.laserHeat;
+                players['p2'].laserOverheated = data.p2.laserOverheated;
             }
             
             // Sync Enemies
             let newEnemies = [];
             data.enemies.forEach(ed => {
-                let e = new Enemy(ed.x, ed.y, ed.t, ed.id);
-                e.hp = ed.hp; e.maxHp = ed.mhp;
-                newEnemies.push(e);
+                let existing = enemies.find(e => e.id === ed.id);
+                if (existing) {
+                    existing.x = ed.x; existing.y = ed.y;
+                    existing.hp = ed.hp; existing.maxHp = ed.mhp;
+                    existing.type = ed.t;
+                    newEnemies.push(existing);
+                } else {
+                    let e = new Enemy(ed.x, ed.y, ed.t, ed.id);
+                    e.hp = ed.hp; e.maxHp = ed.mhp;
+                    newEnemies.push(e);
+                }
             });
             enemies = newEnemies;
 
             // Sync Items
             let newItems = [];
             data.items.forEach(itData => {
-                newItems.push(new Item(itData.x, itData.y, itData.t, itData.id));
+                let existing = items.find(it => it.id === itData.id);
+                if (existing) {
+                    existing.x = itData.x; existing.y = itData.y;
+                    existing.type = itData.t;
+                    newItems.push(existing);
+                } else {
+                    newItems.push(new Item(itData.x, itData.y, itData.t, itData.id));
+                }
             });
             items = newItems;
 
             // Sync Enemy Bullets
             let newEBullets = [];
             data.eBullets.forEach(b => {
-                newEBullets.push(new Bullet(b.x, b.y, b.vx, b.vy, b.c, true));
+                newEBullets.push(new Bullet(b.x, b.y, b.vx, b.vy, b.c, true, '', b.rm || 0, b.bt || 0));
             });
             enemyBullets = newEBullets;
             
             // Host bullets
             let hostBulls = [];
             data.hostBullets.forEach(b => {
-                hostBulls.push(new Bullet(b.x, b.y, b.vx, b.vy, b.c, false, 'p1', 0, b.bt)); // passing player ID 'p1' and bullet type b.bt
+                hostBulls.push(new Bullet(b.x, b.y, b.vx, b.vy, b.c, false, 'p1', b.rm || 0, b.bt || 0, b.ww || 0));
             });
             
             // My bullets (P2)

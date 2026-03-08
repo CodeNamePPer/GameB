@@ -1,10 +1,10 @@
-// js/Player.js
+// js/Player.js //Weapon
 
 class Player {
     constructor(type, weaponType, id) {
         this.id = id;
-        this.type = type;
-        this.weaponType = weaponType;
+        this.type = parseInt(type);
+        this.weaponType = parseInt(weaponType);
         this.x = (id === 'p1') ? canvas.width / 2 - 50 : canvas.width / 2 + 50;
         this.y = canvas.height - 80;
         this.width = 40; this.height = 40;
@@ -14,9 +14,18 @@ class Player {
         this.weaponMaxExp = 3;
         this.shootCooldown = 0;
 
-        if (type === 1) { this.speed = 6; this.maxHp = 100; this.shootDelay = 8; this.color = '#ff99cc'; } 
-        else if (type === 2) { this.speed = 8.5; this.maxHp = 60; this.shootDelay = 5; this.color = '#9933ff'; } 
+        if (type === 1) { this.speed = 6; this.maxHp = 100; this.shootDelay = 8; this.color = '#ff99cc'; }
+        else if (type === 2) { this.speed = 8.5; this.maxHp = 60; this.shootDelay = 5; this.color = '#9933ff'; }
         else if (type === 3) { this.speed = 4; this.maxHp = 180; this.shootDelay = 10; this.color = '#33ccff'; }
+
+        // Weapon Balance: Fire Rate Modifiers
+        if (this.weaponType === 1) this.shootDelay = Math.floor(this.shootDelay * 1.0); // Standard
+        else if (this.weaponType === 2) this.shootDelay = Math.floor(this.shootDelay * 1.0); // Spread
+        else if (this.weaponType === 3) this.shootDelay = Math.max(2, Math.floor(this.shootDelay * 0.8)); // Laser: Faster
+        else if (this.weaponType === 4) this.shootDelay = Math.floor(this.shootDelay * 1.5); // Homing: Slower (Nerf from 1.8 to 1.5)
+        else if (this.weaponType === 5) this.shootDelay = Math.floor(this.shootDelay * 1.2); // Wave: Slightly slower
+        else if (this.weaponType === 6) this.shootDelay = Math.floor(this.shootDelay * 2.5); // Cannon: Very Slow
+
         this.hp = this.maxHp;
 
         // Buff system modifiers
@@ -27,6 +36,10 @@ class Player {
         this.greed = false;
         this.itemDropMod = 0;
         this.piercing = false;
+        // Laser mechanics
+        this.laserHeat = 0; // 0 to 600 (10 seconds at 60fps)
+        this.laserOverheated = false;
+        this.isShootingLaser = false;
     }
 
     updateLocally() {
@@ -34,13 +47,21 @@ class Player {
             if (this.x !== -1000) { this.x = -1000; this.y = -1000; }
             return;
         }
-        if (keys['arrowleft'] || keys['a']) this.x -= this.speed;
-        if (keys['arrowright'] || keys['d']) this.x += this.speed;
-        if (keys['arrowup'] || keys['w']) this.y -= this.speed;
-        if (keys['arrowdown'] || keys['s']) this.y += this.speed;
 
-        this.x = Math.max(this.width/2, Math.min(canvas.width - this.width/2, this.x));
-        this.y = Math.max(this.height/2, Math.min(canvas.height - this.height/2, this.y));
+        if (selectedControlType === 'pc') {
+            if (keys['arrowleft'] || keys['a'] || keys['keya']) this.x -= this.speed;
+            if (keys['arrowright'] || keys['d'] || keys['keyd']) this.x += this.speed;
+            if (keys['arrowup'] || keys['w'] || keys['keyw']) this.y -= this.speed;
+            if (keys['arrowdown'] || keys['s'] || keys['keys']) this.y += this.speed;
+        } else if (selectedControlType === 'mobile') {
+            if (joystickActive) {
+                this.x += joystickVector.x * this.speed;
+                this.y += joystickVector.y * this.speed;
+            }
+        }
+
+        this.x = Math.max(this.width / 2, Math.min(canvas.width - this.width / 2, this.x));
+        this.y = Math.max(this.height / 2, Math.min(canvas.height - this.height / 2, this.y));
 
         if (this.shootCooldown > 0) this.shootCooldown--;
     }
@@ -61,54 +82,64 @@ class Player {
 
     shoot() {
         if (this.hp <= 0) return;
-        const speed = -15; const c = this.color; const rm = this.bulletRadiusMod;
+        const c = this.color; const rm = this.bulletRadiusMod;
         let wt = this.weaponType;
 
         // 1: Standard
         if (wt === 1) {
+            let speed = -18;
             let spreadCount = this.weaponLevel; // 1 to 5
             let startX = this.x - ((spreadCount - 1) * 8);
-            for(let i=0; i<spreadCount; i++) {
-                allBullets.push(new Bullet(startX + (16 * i), this.y - 20, 0, speed, c, false, this.id, rm));
-            }
-        } 
-        // 2: Spread (Shotgun)
-        else if (wt === 2) {
-            let pelletCount = 2 + this.weaponLevel; // 3 to 7
-            let spreadAngleBase = 0.5;
-            for(let i=0; i<pelletCount; i++) {
-                let vx = spreadAngleBase * (i - (pelletCount - 1) / 2);
-                allBullets.push(new Bullet(this.x, this.y - 20, vx * 3, speed * 0.9, c, false, this.id, rm));
+            for (let i = 0; i < spreadCount; i++) {
+                allBullets.push(new Bullet(startX + (16 * i), this.y - 20, 0, speed, c, false, this.id, rm, 1));
             }
         }
-        // 3: Laser (Fast & Piercing innate)
-        else if (wt === 3) {
-            let count = Math.ceil(this.weaponLevel / 2); // 1, 1, 2, 2, 3
-            let startX = this.x - ((count - 1) * 10);
-            for(let i=0; i<count; i++) {
-                let b = new Bullet(startX + (20 * i), this.y - 30, 0, speed * 1.5, '#fff', false, this.id, rm + 1, 3);
-                b.naturalPiercing = true;
-                allBullets.push(b);
+        // 2: Spread (Shotgun)
+        else if (wt === 2) {
+            let speed = -12;
+            let pelletCount = 2 + this.weaponLevel; // 3 to 7
+            let spreadAngleBase = 0.5;
+            for (let i = 0; i < pelletCount; i++) {
+                let vx = spreadAngleBase * (i - (pelletCount - 1) / 2);
+                allBullets.push(new Bullet(this.x, this.y - 20, vx * 3, speed * 0.9, c, false, this.id, rm, 2));
             }
+        }
+        // 3: Laser (Continuous Beam)
+        else if (wt === 3) {
+            if (this.laserOverheated) return; // Cannot shoot
+            
+            this.isShootingLaser = true;
+            this.laserHeat += 1; // 1 heat per frame
+            if (this.laserHeat >= 600) { // 10 seconds at 60 FPS
+                this.laserOverheated = true;
+                pushEvent('explosion', { x: this.x, y: this.y, c: '#ff003c', amount: 30 }); // minor visual feedback
+            }
+
+            // We let engine.js handle the actual beam rendering and collision for wt===3
         }
         // 4: Homing
         else if (wt === 4) {
+            let speed = -10;
             let count = this.weaponLevel; // 1 to 5
-            for(let i=0; i<count; i++) {
+            for (let i = 0; i < count; i++) {
                 let vx = (Math.random() - 0.5) * 6; // pop out sideways slightly
                 allBullets.push(new Bullet(this.x, this.y - 15, vx, speed * 0.8, c, false, this.id, rm, 4));
             }
         }
         // 5: Wave
         else if (wt === 5) {
+            let speed = -14;
             let width = 2 + this.weaponLevel; // 3 to 7
-            allBullets.push(new Bullet(this.x, this.y - 20, 0, Math.max(-8, speed * 0.6), c, false, this.id, rm, 5, width));
-            if (this.weaponLevel >= 3) allBullets.push(new Bullet(this.x, this.y - 20, 0, Math.max(-8, speed * 0.6), c, false, this.id, rm, 5, -width)); // mirrored wave
+            allBullets.push(new Bullet(this.x, this.y - 20, 0, speed, c, false, this.id, rm, 5, width));
+            if (this.weaponLevel >= 3) allBullets.push(new Bullet(this.x, this.y - 20, 0, speed, c, false, this.id, rm, 5, -width)); // mirrored wave
         }
         // 6: Cannon
         else if (wt === 6) {
-            let sizeMod = this.weaponLevel * 3;
-            allBullets.push(new Bullet(this.x, this.y - 30, 0, -10, c, false, this.id, rm + sizeMod, 6)); // massive
+            let speed = -8;
+            let sizeMod = this.weaponLevel * 4; // bigger bullets
+            let b = new Bullet(this.x, this.y - 30, 0, speed, c, false, this.id, rm + sizeMod, 6); // massive
+            if (Math.random() < 0.5) b.naturalPiercing = true; // 50% chance to pierce
+            allBullets.push(b);
         }
     }
 
@@ -127,9 +158,9 @@ class Player {
         if (typeof updateUI === "function") updateUI();
     }
 
-    heal(amount) { 
-        this.hp = Math.min(this.maxHp, this.hp + amount); 
-        if (typeof updateUI === "function") updateUI(); 
+    heal(amount) {
+        this.hp = Math.min(this.maxHp, this.hp + amount);
+        if (typeof updateUI === "function") updateUI();
     }
 
     applyBuff(buffId) {

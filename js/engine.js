@@ -2,7 +2,7 @@
 
 function spawnEnemies() {
     if (!isHost) return;
-    
+
     // Check for Boss spawn
     if (frameCount > 0 && frameCount % 1800 === 0 && !isBossActive) {
         isBossActive = true;
@@ -14,12 +14,12 @@ function spawnEnemies() {
 
     if (isBossActive) return; // Stop normal spawns
 
-    const sr = Math.max(25, 80 - Math.floor(score / 300) - waveCount * 2); 
+    const sr = Math.max(25, 80 - Math.floor(score / 300) - waveCount * 2);
     if (frameCount % sr === 0) {
         const x = Math.random() * (canvas.width - 60) + 30;
-        let type = 1; 
+        let type = 1;
         const rand = Math.random();
-        
+
         // Progressive unlock based on wave
         if (waveCount === 1) {
             if (rand > 0.5) type = 2;
@@ -38,16 +38,16 @@ function spawnEnemies() {
             // Wave 4+ All types
             type = Math.floor(Math.random() * 10) + 1;
         }
-        
+
         enemies.push(new Enemy(x, -30, type));
     }
 }
 
 function updateUI() {
     document.getElementById('scoreValue').innerText = score;
-    
+
     let p1 = players['p1'];
-    if(p1) {
+    if (p1) {
         const perc1 = (p1.hp / p1.maxHp) * 100;
         const hp1 = document.getElementById('hpBar1');
         hp1.style.width = `${perc1}%`;
@@ -57,7 +57,7 @@ function updateUI() {
     }
 
     let p2 = players['p2'];
-    if(p2 && isMultiplayer) {
+    if (p2 && isMultiplayer) {
         document.getElementById('p2UiBox').style.display = 'flex';
         const perc2 = (p2.hp / p2.maxHp) * 100;
         const hp2 = document.getElementById('hpBar2');
@@ -78,20 +78,24 @@ function startGameAsHost(clientShipType, clientWeaponType) {
     mainMenu.style.display = 'none';
     uiLayer.style.display = 'block';
 
+    if (selectedControlType === 'mobile') {
+        document.getElementById('mobileControls').style.display = 'block';
+    }
+
     myPlayerId = 'p1';
     players['p1'] = new Player(selectedShipType, selectedWeaponType, 'p1');
-    
+
     if (isMultiplayer && clientShipType) {
         players['p2'] = new Player(clientShipType, clientWeaponType || 1, 'p2');
         connection.send({ type: 'start', hostShipType: selectedShipType, hostWeaponType: selectedWeaponType, clientShipType: clientShipType, clientWeaponType: clientWeaponType });
     }
 
     allBullets = []; enemyBullets = []; enemies = []; items = []; particles = [];
-    stars = Array.from({length: 100}, () => new Star());
-    
+    stars = Array.from({ length: 50 }, () => new Star());
+
     score = 0; frameCount = 0; gameActive = true; isBossActive = false; waveCount = 1;
     document.getElementById('gameOverScreen').style.display = 'none';
-    
+
     updateUI();
     gameLoop();
 }
@@ -100,16 +104,20 @@ function startGameAsClient(myShipType, hostShipType, myWeaponType, hostWeaponTyp
     mainMenu.style.display = 'none';
     uiLayer.style.display = 'block';
 
+    if (selectedControlType === 'mobile') {
+        document.getElementById('mobileControls').style.display = 'block';
+    }
+
     myPlayerId = 'p2';
     players['p1'] = new Player(hostShipType, hostWeaponType, 'p1');
     players['p2'] = new Player(myShipType, myWeaponType, 'p2');
-    
+
     allBullets = []; enemyBullets = []; enemies = []; items = []; particles = [];
-    stars = Array.from({length: 100}, () => new Star());
-    
+    stars = Array.from({ length: 50 }, () => new Star());
+
     score = 0; frameCount = 0; gameActive = true; isBossActive = false; waveCount = 1;
     document.getElementById('gameOverScreen').style.display = 'none';
-    
+
     updateUI();
     gameLoop();
 }
@@ -118,7 +126,7 @@ function startDraft() {
     isDrafting = true;
     draftChoices = [];
     let available = [...BUFFS];
-    for (let i=0; i<3; i++) {
+    for (let i = 0; i < 3; i++) {
         let idx = Math.floor(Math.random() * available.length);
         draftChoices.push(available[idx]);
         available.splice(idx, 1);
@@ -126,11 +134,11 @@ function startDraft() {
     draftPicks = { p1: null, p2: null };
     if (!isMultiplayer || (players['p2'] && players['p2'].hp <= 0)) draftPicks.p2 = -1; // Auto skip dead p2
     if (players['p1'] && players['p1'].hp <= 0) draftPicks.p1 = -1;
-    
+
     if (isMultiplayer && connection && connection.open) {
         connection.send({ type: 'draft_start', choices: draftChoices });
     }
-    
+
     showDraftScreen();
 }
 
@@ -140,7 +148,7 @@ function showDraftScreen() {
     document.getElementById('draftCards').style.pointerEvents = 'auto'; // allow re-clicking safely
     let container = document.getElementById('draftCards');
     container.innerHTML = '';
-    
+
     // If dead, skip instantly
     let me = players[myPlayerId];
     if (!me || me.hp <= 0) {
@@ -165,7 +173,7 @@ function showDraftScreen() {
 function submitDraftPick(buffId) {
     document.getElementById('draftCards').style.pointerEvents = 'none';
     document.getElementById('draftWaitText').style.display = 'block';
-    
+
     if (isHost) {
         draftPicks[myPlayerId] = buffId;
         checkDraftComplete();
@@ -180,17 +188,17 @@ function checkDraftComplete() {
         // Both picked
         if (draftPicks.p1 >= 0 && players['p1']) players['p1'].applyBuff(draftPicks.p1);
         if (isMultiplayer && draftPicks.p2 >= 0 && players['p2']) players['p2'].applyBuff(draftPicks.p2);
-        
+
         isDrafting = false;
         waveCount++;
         let waveEl = document.getElementById('waveValue');
         if (waveEl) waveEl.innerText = waveCount;
-        
+
         if (isMultiplayer && connection && connection.open) {
             connection.send({ type: 'draft_end', p1Pick: draftPicks.p1, p2Pick: draftPicks.p2 });
         }
         document.getElementById('draftScreen').style.display = 'none';
-        
+
         // Reset state slightly after boss
         allBullets = []; enemyBullets = []; items = [];
     }
@@ -209,13 +217,28 @@ function gameLoop() {
     }
 
     frameCount++;
-    
+
+    // Reset laser shooting flag for all players at start of frame
+    for (let pid in players) {
+        if (players[pid]) players[pid].isShootingLaser = false;
+    }
+
     let me = players[myPlayerId];
     if (me && me.hp > 0) {
-        me.updateLocally();
-        if (keys[' '] && me.shootCooldown <= 0) {
-            me.shoot();
-            me.shootCooldown = me.shootDelay;
+        if (selectedControlType === 'pc') {
+            me.updateLocally();
+            if ((keys[' '] || keys['space']) && (me.shootCooldown <= 0 || me.weaponType === 3)) {
+                me.shoot();
+                me.shootCooldown = me.shootDelay;
+            }
+        } else if (selectedControlType === 'mobile') {
+            me.updateLocally();
+
+            // Auto-fire while holding FIRE button
+            if (isShooting && (me.shootCooldown <= 0 || me.weaponType === 3)) {
+                me.shoot();
+                me.shootCooldown = me.shootDelay;
+            }
         }
     }
 
@@ -224,11 +247,20 @@ function gameLoop() {
         players['p2'].shootCooldown--;
     }
 
+    // Dissipate laser heat for any player not shooting
+    for (let pid in players) {
+        let p = players[pid];
+        if (p && p.weaponType === 3 && !p.isShootingLaser && p.laserHeat > 0) {
+            p.laserHeat = Math.max(0, p.laserHeat - 1); // Recover 1 per frame
+            if (p.laserHeat === 0) p.laserOverheated = false;
+        }
+    }
+
     // Update Time display
     if (frameCount % 10 === 0) {
         let timeRemaining = Math.max(0, 30 - Math.floor((frameCount % 1800) / 60));
         let timerEl = document.getElementById('bossTimerValue');
-        if(timerEl) {
+        if (timerEl) {
             if (isBossActive) { timerEl.innerText = "BOSS FIGHT!!"; timerEl.style.color = "#ff003c"; }
             else { timerEl.innerText = timeRemaining + "s"; timerEl.style.color = "#ffeb3b"; }
         }
@@ -245,12 +277,12 @@ function gameLoop() {
                 score: score,
                 wave: waveCount,
                 boss: isBossActive,
-                p1: players['p1'] ? {x:players['p1'].x, y:players['p1'].y, hp:players['p1'].hp, maxHp:players['p1'].maxHp, wl:players['p1'].weaponLevel, wexp:players['p1'].weaponExp, wmx: players['p1'].weaponMaxExp} : null,
-                p2: players['p2'] ? {hp:players['p2'].hp, maxHp:players['p2'].maxHp, wl:players['p2'].weaponLevel, wexp:players['p2'].weaponExp, wmx: players['p2'].weaponMaxExp} : null, // Host sends HP & EXP
-                enemies: enemies.map(e => ({ x:Math.floor(e.x), y:Math.floor(e.y), t:e.type, hp:e.hp, mhp:e.maxHp, id:e.id })),
-                items: items.map(i => ({ x:Math.floor(i.x), y:Math.floor(i.y), t:i.type, id:i.id })),
-                eBullets: enemyBullets.map(b => ({ x:Math.floor(b.x), y:Math.floor(b.y), vx:b.vx, vy:b.vy, c:b.color })),
-                hostBullets: allBullets.filter(b=>b.owner==='p1').map(b => ({ x:Math.floor(b.x), y:Math.floor(b.y), vx:b.vx, vy:b.vy, c:b.color, bt:b.type })),
+                p1: players['p1'] ? { x: players['p1'].x, y: players['p1'].y, hp: players['p1'].hp, maxHp: players['p1'].maxHp, wl: players['p1'].weaponLevel, wexp: players['p1'].weaponExp, wmx: players['p1'].weaponMaxExp, isShootingLaser: players['p1'].isShootingLaser, laserHeat: players['p1'].laserHeat, laserOverheated: players['p1'].laserOverheated } : null,
+                p2: players['p2'] ? { hp: players['p2'].hp, maxHp: players['p2'].maxHp, wl: players['p2'].weaponLevel, wexp: players['p2'].weaponExp, wmx: players['p2'].weaponMaxExp, isShootingLaser: players['p2'].isShootingLaser, laserHeat: players['p2'].laserHeat, laserOverheated: players['p2'].laserOverheated } : null, // Host sends HP & EXP
+                enemies: enemies.map(e => ({ x: Math.floor(e.x), y: Math.floor(e.y), t: e.type, hp: e.hp, mhp: e.maxHp, id: e.id })),
+                items: items.map(i => ({ x: Math.floor(i.x), y: Math.floor(i.y), t: i.type, id: i.id })),
+                eBullets: enemyBullets.map(b => ({ x: Math.floor(b.x), y: Math.floor(b.y), vx: b.vx, vy: b.vy, c: b.color, rm: b.radiusMod, bt: b.type })),
+                hostBullets: allBullets.filter(b => b.owner === 'p1').map(b => ({ x: Math.floor(b.x), y: Math.floor(b.y), vx: b.vx, vy: b.vy, c: b.color, bt: b.type, rm: b.radiusMod, ww: b.waveW })),
                 events: networkEvents
             };
             connection.send(state);
@@ -261,7 +293,7 @@ function gameLoop() {
                 type: 'sync',
                 px: me.x,
                 py: me.y,
-                shoot: keys[' ']
+                shoot: (selectedControlType === 'pc' ? (keys[' '] || keys['space']) : isShooting)
             };
             connection.send(state);
         }
@@ -282,13 +314,13 @@ function gameLoop() {
 
     if (isHost) {
         // Update Enemies & Items
-        for (let i = enemies.length - 1; i >= 0; i--) { 
-            let e = enemies[i]; 
-            e.update(); 
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            let e = enemies[i];
+            e.update();
             // Only despawn normal enemies at bottom, Boss won't reach bottom anyway, but just in case
-            if (e.y > canvas.height + 50 && e.type < 100) enemies.splice(i, 1); 
+            if (e.y > canvas.height + 50 && e.type < 100) enemies.splice(i, 1);
         }
-        for (let i = items.length - 1; i >= 0; i--) { let it = items[i]; it.update(); if (it.y > canvas.height+20) items.splice(i, 1); }
+        for (let i = items.length - 1; i >= 0; i--) { let it = items[i]; it.update(); if (it.y > canvas.height + 20) items.splice(i, 1); }
     }
 
     // Particles
@@ -302,10 +334,10 @@ function gameLoop() {
         // Player vs Items
         for (let pid in players) {
             let p = players[pid];
-            if(p.hp <= 0) continue;
+            if (p.hp <= 0) continue;
             for (let i = items.length - 1; i >= 0; i--) {
                 let it = items[i];
-                if (circleCollision(p.x, p.y, p.width/2, it.x, it.y, it.radius)) {
+                if (circleCollision(p.x, p.y, p.width / 2, it.x, it.y, it.radius)) {
                     if (it.type === 'heal') p.heal(30); else p.upgradeWeapon();
                     createExplosion(it.x, it.y, it.color, 10);
                     pushEvent('explosion', { x: it.x, y: it.y, c: it.color, amount: 10 });
@@ -317,7 +349,7 @@ function gameLoop() {
         // Player vs Enemy Bullets
         for (let pid in players) {
             let p = players[pid];
-            if(p.hp <= 0) continue;
+            if (p.hp <= 0) continue;
             for (let i = enemyBullets.length - 1; i >= 0; i--) {
                 let b = enemyBullets[i];
                 if (circleCollision(p.x, p.y, p.hitboxRadius, b.x, b.y, b.radius)) {
@@ -332,14 +364,21 @@ function gameLoop() {
         // Player vs Enemies
         for (let pid in players) {
             let p = players[pid];
-            if(p.hp <= 0) continue;
+            if (p.hp <= 0) continue;
             for (let i = enemies.length - 1; i >= 0; i--) {
                 let e = enemies[i];
                 if (circleCollision(p.x, p.y, p.hitboxRadius + 10, e.x, e.y, e.radius)) {
-                    p.takeDamage(20); e.hp = 0;
-                    createExplosion(e.x, e.y, e.color, 20);
-                    pushEvent('explosion', { x: e.x, y: e.y, c: e.color, amount: 20 });
-                    enemies.splice(i, 1);
+                    if (e.type >= 100) {
+                        p.takeDamage(p.maxHp * 0.8);
+                        createExplosion(e.x, e.y, e.color, 40);
+                        pushEvent('explosion', { x: e.x, y: e.y, c: e.color, amount: 40 });
+                    } else {
+                        p.takeDamage(20);
+                        createExplosion(e.x, e.y, e.color, 20);
+                        pushEvent('explosion', { x: e.x, y: e.y, c: e.color, amount: 20 });
+                        e.hp = 0;
+                        enemies.splice(i, 1);
+                    }
                 }
             }
         }
@@ -352,17 +391,26 @@ function gameLoop() {
                 if (circleCollision(e.x, e.y, e.radius, b.x, b.y, b.radius)) {
                     let ownerP = players[b.owner];
                     let dmg = 15;
-                    if(ownerP) {
-                        dmg = (ownerP.type === 2 ? 8 : (ownerP.type === 3 ? 20 : 15));
+                    if (ownerP) {
+                        // Base damage by Weapon Type
+                        let wt = ownerP.weaponType;
+                        if (wt === 1) dmg = 15;
+                        else if (wt === 2) dmg = 12; // Spread
+                        else if (wt === 3) dmg = 8;  // Laser (hits faster/pierces)
+                        else if (wt === 4) dmg = 10; // Homing (safe but weak)
+                        else if (wt === 5) dmg = 18; // Wave (high coverage rewarding)
+                        else if (wt === 6) dmg = 100; // Cannon (massive hit)
+
+                        // Ship Base Modifiers (Optional - keep phantom hit slightly weaker if desired, or skip. Let's keep it simple: just use weapon damage + buff damage)
                         dmg += ownerP.damageMod;
                         if (ownerP.vampirism && Math.random() < 0.05) ownerP.heal(1);
                     }
-                    
+
                     e.hp -= dmg;
                     if (!ownerP || (!ownerP.piercing && !b.naturalPiercing) || Math.random() >= 0.25) {
                         allBullets.splice(j, 1);
                     }
-                    
+
                     createExplosion(b.x, b.y, e.color, 3);
                     pushEvent('explosion', { x: b.x, y: b.y, c: e.color, amount: 3 });
 
@@ -373,7 +421,7 @@ function gameLoop() {
                             startDraft();
                         } else {
                             let mult = (ownerP && ownerP.greed) ? 2 : 1;
-                            score += e.type * 50 * mult; 
+                            score += e.type * 50 * mult;
                             if (e.type === 10) { // Splitter logic
                                 enemies.push(new Enemy(e.x - 20, e.y, 6)); // Spawn 3 sprinters
                                 enemies.push(new Enemy(e.x + 20, e.y, 6));
@@ -391,12 +439,58 @@ function gameLoop() {
             }
         }
 
+        // Laser Continuous Beam Collision (Type 3)
+        for (let pid in players) {
+            let p = players[pid];
+            if (p.hp > 0 && p.weaponType === 3 && p.isShootingLaser) {
+                let beamWidth = 20 + (p.weaponLevel * 4); // Wider with level
+                let beamLeft = p.x - beamWidth / 2;
+                let beamRight = p.x + beamWidth / 2;
+
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    let e = enemies[i];
+                    // Check if enemy circle intersects the beam rectangle (y < p.y)
+                    if (e.y < p.y && e.x + e.radius > beamLeft && e.x - e.radius < beamRight) {
+                        let dmg = 1.5 + (p.damageMod / 60); // 1.5 per frame
+                        e.hp -= dmg;
+
+                        if (frameCount % 4 === 0) { // Throttle particles
+                            createExplosion(e.x, e.y + e.radius, '#fff', 2);
+                            pushEvent('explosion', { x: e.x, y: e.y + e.radius, c: '#fff', amount: 2 });
+                        }
+
+                        if (e.hp <= 0) {
+                            if (e.type >= 100) {
+                                isBossActive = false;
+                                score += 2000;
+                                startDraft();
+                            } else {
+                                let mult = (p.greed) ? 2 : 1;
+                                score += e.type * 50 * mult;
+                                if (e.type === 10) {
+                                    enemies.push(new Enemy(e.x - 20, e.y, 6));
+                                    enemies.push(new Enemy(e.x + 20, e.y, 6));
+                                    enemies.push(new Enemy(e.x, e.y - 20, 6));
+                                }
+                            }
+                            updateUI();
+                            createExplosion(e.x, e.y, e.color, 20);
+                            pushEvent('explosion', { x: e.x, y: e.y, c: e.color, amount: 20 });
+                            let dropChance = 0.20 + p.itemDropMod;
+                            if (Math.random() < dropChance) items.push(new Item(e.x, e.y, Math.random() < 0.4 ? 'heal' : 'upgrade'));
+                            enemies.splice(i, 1);
+                        }
+                    }
+                }
+            }
+        }
+
         // Check Game Over condition for Host
         let allDead = true;
-        for(let pid in players) {
-            if(players[pid].hp > 0) allDead = false;
+        for (let pid in players) {
+            if (players[pid].hp > 0) allDead = false;
         }
-        if(allDead && gameActive) {
+        if (allDead && gameActive) {
             showGameOver();
             pushEvent('gameover', {});
         }
@@ -414,15 +508,62 @@ function gameLoop() {
         }
     }
 
+    // Background Map Theme Logic (Change every 60s = 3600 frames)
+    if (frameCount > 0 && frameCount % 3600 === 0) {
+        currentMapIndex = (currentMapIndex + 1) % MAPS.length;
+    }
+
+    // Smoothly interpolate current background towards target map color
+    let targetC = MAPS[currentMapIndex].color;
+    currentBgColor.r += (targetC.r - currentBgColor.r) * 0.01;
+    currentBgColor.g += (targetC.g - currentBgColor.g) * 0.01;
+    currentBgColor.b += (targetC.b - currentBgColor.b) * 0.01;
+
+    let targetStarC = MAPS[currentMapIndex].starColor;
+    currentStarColor.r += (targetStarC.r - currentStarColor.r) * 0.01;
+    currentStarColor.g += (targetStarC.g - currentStarColor.g) * 0.01;
+    currentStarColor.b += (targetStarC.b - currentStarColor.b) * 0.01;
+
+    let bgStyle = `rgb(${Math.floor(currentBgColor.r)}, ${Math.floor(currentBgColor.g)}, ${Math.floor(currentBgColor.b)})`;
+
     // Render
-    ctx.fillStyle = '#0b0c10'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = bgStyle;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     stars.forEach(s => s.draw());
     items.forEach(i => i.draw());
     enemies.forEach(e => e.draw());
     enemyBullets.forEach(b => b.draw());
     allBullets.forEach(b => b.draw());
     particles.forEach(p => p.draw());
-    
+
+    // Draw Laser Beams and Heat UI
+    ctx.globalAlpha = 1.0;
+    ctx.lineWidth = 1;
+    for (let pid in players) {
+        let p = players[pid];
+        if (p.hp > 0 && p.weaponType === 3) {
+            // Draw Heat Bar above player
+            let heatRatio = Math.min(1, p.laserHeat / 600);
+            ctx.fillStyle = p.laserOverheated ? '#ff003c' : '#ffeb3b';
+            ctx.fillRect(p.x - 20, p.y - 45, 40 * heatRatio, 4);
+            ctx.strokeStyle = '#000'; ctx.strokeRect(p.x - 20, p.y - 45, 40, 4);
+
+            // Draw Active Beam
+            if (p.isShootingLaser) {
+                let beamWidth = 20 + (p.weaponLevel * 4);
+                // Outer Cyan Glow
+                ctx.fillStyle = '#33ccff';
+                ctx.globalAlpha = 0.5 + (Math.random() * 0.3);
+                ctx.fillRect(p.x - beamWidth / 2, 0, beamWidth, p.y);
+                // Inner White Core
+                ctx.fillStyle = '#ffffff';
+                ctx.globalAlpha = 0.8 + (Math.random() * 0.2);
+                ctx.fillRect(p.x - (beamWidth * 0.4) / 2, 0, beamWidth * 0.4, p.y);
+                ctx.globalAlpha = 1.0;
+            }
+        }
+    }
+
     for (let pid in players) players[pid].draw();
 
     if (gameActive) animationId = requestAnimationFrame(gameLoop);
