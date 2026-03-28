@@ -16,34 +16,67 @@ class Enemy {
         else if (type === 8) { this.hp = 50; this.color = '#00ff00'; this.speedY = 4.0; this.radius = 20; } // Sniper
         else if (type === 9) { this.hp = 30; this.color = '#0066ff'; this.speedY = 1.5; this.radius = 22; this.startX = x; } // Waver
         else if (type === 10) { this.hp = 120; this.color = '#ffffff'; this.speedY = 1.0; this.radius = 35; } // Splitter
-        else if (type === 101) { this.hp = 1500; this.color = '#ff003c'; this.speedY = 1.2; this.radius = 60; } // Boss 1
-        else if (type === 102) { this.hp = 2500; this.color = '#00ffff'; this.speedY = 1.5; this.radius = 65; } // Boss 2
-        else if (type === 103) { this.hp = 4000; this.color = '#9900ff'; this.speedY = 2.0; this.radius = 70; } // Boss 3
-        else if (type > 103) { this.hp = 4000 + (type - 103) * 1500; this.color = '#ffffff'; this.speedY = 2.5; this.radius = 70; } // Boss scaling
+        else if (type === 101) { this.hp = 1500; this.color = '#ff007f'; this.speedY = 1.0; this.radius = 50; } // Neon Valkyrie
+        else if (type === 102) { this.hp = 2500; this.color = '#ff3300'; this.speedY = 0.5; this.radius = 70; } // Cyber Behemoth
+        else if (type === 103) { this.hp = 3000; this.color = '#c5a3ff'; this.speedY = 1.2; this.radius = 50; } // Prism Core
+        else if (type === 104) { this.hp = 4000; this.color = '#00ffcc'; this.speedY = 0.8; this.radius = 90; } // Starship Carrier
+        else if (type === 105) { this.hp = 4500; this.color = '#ff33cc'; this.speedY = 1.0; this.radius = 60; } // Plasma Eye
+        else if (type === 106) { this.hp = 5500; this.color = '#9d00ff'; this.speedY = 1.5; this.radius = 65; } // Abyssal Spider
+        else if (type === 107) { this.hp = 6500; this.color = '#00ffcc'; this.speedY = 2.0; this.radius = 45; } // Aero-Serpent
+        else if (type === 108) { this.hp = 7500; this.color = '#ffffff'; this.speedY = 1.8; this.radius = 70; } // Twin-Core
+        else if (type === 109) { this.hp = 8500; this.color = '#ff0000'; this.speedY = 3.0; this.radius = 55; } // Crimson Interceptor
+        else if (type === 110) { this.hp = 12000; this.color = '#ffd700'; this.speedY = 0.4; this.radius = 100; } // Omega Engine
+        else if (type > 110) { this.hp = 12000 + (type-110)*2000; this.color = '#ffffff'; this.speedY = 1.0; this.radius = 80; } // Infinity scaling
 
         this.maxHp = this.hp;
     }
 
     update() {
         if (this.type >= 100) {
-            // Boss stops halfway (only move down if y is less than 150)
-            if (this.y < 150) {
+            // Most bosses stop at y = 150
+            if (this.y < 150 && this.type !== 109) {
                 this.y += this.speedY;
-            } else if (this.type === 102) {
-                // Boss 2 moves side to side
-                if (!this.vx) this.vx = 2;
-                this.x += this.vx;
-                if (this.x < 100 || this.x > canvas.width - 100) this.vx *= -1;
-            } else if (this.type >= 103) {
-                // Boss 3 erratic movement
-                if (this.timer % 60 === 0) {
-                    this.vx = (Math.random() - 0.5) * 6;
-                    this.vy = (Math.random() - 0.5) * 4;
+            } else {
+                // Boss Specific Movements
+                if (!this.vx) this.vx = 2; // Default horizontal speed
+                
+                if (this.type === 102) { // Cyber Behemoth (Slow side to side)
+                    this.vx = this.vx > 0 ? 1 : -1;
+                    this.x += this.vx;
+                    if (this.x < 150 || this.x > canvas.width - 150) this.vx *= -1;
+                } else if (this.type === 104) { // Starship Carrier (Very wide, slow)
+                    this.vx = this.vx > 0 ? 0.8 : -0.8;
+                    this.x += this.vx;
+                    if (this.x < 200 || this.x > canvas.width - 200) this.vx *= -1;
+                } else if (this.type === 105) { // Plasma Eye (Center focus, slow drift)
+                    this.x += Math.sin(this.timer * 0.02) * 1.5;
+                } else if (this.type === 106) { // Abyssal Spider (Rapid dodger)
+                    if (this.timer % 120 === 0) this.vx = (Math.random() - 0.5) * 15;
+                    this.x += this.vx;
+                    this.vx *= 0.9; // Friction
+                    if (this.x < 100) { this.x = 100; this.vx = Math.abs(this.vx); }
+                    if (this.x > canvas.width - 100) { this.x = canvas.width - 100; this.vx = -Math.abs(this.vx); }
+                } else if (this.type === 107) { // Aero-Serpent (Slithers top)
+                    this.x += Math.sin(this.timer * 0.05) * 4;
+                    this.y = 80 + Math.cos(this.timer * 0.03) * 30; // Figure 8 up high
+                } else if (this.type === 109) { // Crimson Interceptor (Fast Dasher)
+                    if (this.timer % 150 === 0) {
+                        this.vx = (Math.random() - 0.5) * 20;
+                        this.vy = (Math.random() - 0.5) * 10;
+                    }
+                    if (this.timer % 150 < 40) { // Dash duration
+                        this.x += this.vx || 0;
+                        this.y += this.vy || 0;
+                    }
+                    this.x = Math.max(80, Math.min(canvas.width - 80, this.x));
+                    this.y = Math.max(50, Math.min(300, this.y));
+                } else if (this.type === 110) { // Omega Engine
+                    this.x = canvas.width / 2 + Math.sin(this.timer * 0.01) * 30; // Very subtle sway
+                    this.y = 120 + Math.sin(this.timer * 0.015) * 15;
+                } else {
+                    // Default erratic or sweep for 101, 103, 108
+                    this.x += Math.sin(this.timer * 0.03) * 2.5;
                 }
-                if (this.vx) this.x += this.vx;
-                if (this.vy) this.y += this.vy;
-                this.x = Math.max(80, Math.min(canvas.width - 80, this.x));
-                this.y = Math.max(50, Math.min(250, this.y));
             }
         } else {
             if (this.type === 5) {
@@ -97,28 +130,73 @@ class Enemy {
         }
 
         // Boss attacks
-        if (this.type === 101) { // Boss 1
-            let phase = Math.floor(this.timer / 150) % 3;
-            if (phase === 0 && this.timer % 30 === 0) this.shootRadial(12, 3.5);
-            else if (phase === 1 && this.timer % 8 === 0) this.shootSpiral(1);
-            else if (phase === 2 && this.timer % 40 === 0) { this.shootTarget(target, 6); this.shootArc(8); }
-        } else if (this.type === 102) { // Boss 2
-            let phase = Math.floor(this.timer / 200) % 2;
-            if (phase === 0 && this.timer % 50 === 0) {
-                this.shootRadial(20, 5);
-                this.shootTarget(target, 8);
-            } else if (phase === 1 && this.timer % 5 === 0) {
-                enemyBullets.push(new Bullet(this.x, this.y + 40, (Math.random() - 0.5) * 2, 8, '#00ffff', true));
+        if (this.type === 101) { // Neon Valkyrie
+            let phase = Math.floor(this.timer / 150) % 2;
+            if (phase === 0 && this.timer % 20 === 0) this.shootRadial(16, 4); // Nova rings
+            else if (phase === 1 && this.timer % 15 === 0) this.shootTarget(target, 8); // Accurate burst
+        } else if (this.type === 102) { // Cyber Behemoth
+            if (this.timer % 80 === 0) {
+                // Huge cannon ball 
+                enemyBullets.push(new Bullet(this.x, this.y + 40, 0, 5, '#ff3300', true)); 
             }
-        } else if (this.type >= 103) { // Boss 3+
-            let phase = Math.floor(this.timer / 120) % 3;
-            if (phase === 0 && this.timer % 4 === 0) this.shootSpiral(1.5, '#9900ff');
-            else if (phase === 1 && this.timer % 20 === 0) this.shootRadial(16, 4);
-            else if (phase === 2 && this.timer % 50 === 0) {
-                for (let i = 0; i < 3; i++) {
-                    let nx = this.x + (Math.random() - 0.5) * 100;
-                    enemyBullets.push(new Bullet(nx, this.y, 0, 2, '#333333', true)); // Black holes
+            if (this.timer % 120 === 0) this.shootRadial(12, 3); // Shrapnel simulator
+        } else if (this.type === 103) { // Prism Core
+            if (this.timer % 6 === 0) this.shootSpiral(1.2, '#c5a3ff'); // Continuous spiral
+        } else if (this.type === 104) { // Starship Carrier
+            if (this.timer % 150 === 0) {
+                // Spawn kamikaze
+                if (typeof enemies !== 'undefined') {
+                    enemies.push(new Enemy(this.x - 40, this.y + 20, 6)); 
+                    enemies.push(new Enemy(this.x + 40, this.y + 20, 6)); 
                 }
+            }
+            if (this.timer % 50 === 0) this.shootArc(12); // Sweeping wave
+        } else if (this.type === 105) { // Plasma Eye
+            // Continuous Laser Sweep (simulated by dense fast bullets sweeping)
+            if (this.timer % 3 === 0) {
+                let sweepAngle = Math.PI/2 + Math.sin(this.timer * 0.05) * 0.8; // Sweeps downwards left to right
+                enemyBullets.push(new Bullet(this.x, this.y, Math.cos(sweepAngle)*12, Math.sin(sweepAngle)*12, '#ff33cc', true));
+            }
+        } else if (this.type === 106) { // Abyssal Spider
+            if (this.timer % 90 === 0) this.shootMine(); // Web mines
+            if (this.timer % 60 === 0 && Math.random() < 0.5) this.shootTarget(target, 7);
+        } else if (this.type === 107) { // Aero-Serpent
+            if (this.timer % 10 === 0) { // 3-way spread constant
+                const speed = 5;
+                enemyBullets.push(new Bullet(this.x, this.y, 0, speed, '#00ffcc', true));
+                enemyBullets.push(new Bullet(this.x, this.y, -2, speed*0.9, '#00ffcc', true));
+                enemyBullets.push(new Bullet(this.x, this.y, 2, speed*0.9, '#00ffcc', true));
+            }
+        } else if (this.type === 108) { // Twin-Core
+            let phase = Math.floor(this.timer / 100) % 2;
+            if (phase === 0 && this.timer % 10 === 0) { // Red fast
+                enemyBullets.push(new Bullet(this.x - 45, this.y, 0, 8, '#ff003c', true));
+            } else if (phase === 1 && this.timer % 40 === 0) { // Blue tracking
+                const angle = Math.atan2(target.y - this.y, target.x - (this.x + 45));
+                enemyBullets.push(new Bullet(this.x + 45, this.y, Math.cos(angle)*3, Math.sin(angle)*3, '#00f3ff', true));
+            }
+        } else if (this.type === 109) { // Crimson Interceptor
+            if (this.timer % 150 === 60) { // Fires shortly after dashing
+                this.shootArc(15); // Shotgun blast
+                this.shootTarget(target, 10);
+            }
+        } else if (this.type >= 110) { // Omega Engine
+            let hpRatio = this.hp / this.maxHp;
+            if (hpRatio > 0.6) { // Phase 1
+                if (this.timer % 8 === 0) this.shootSpiral(1.5, '#ffd700');
+                if (this.timer % 60 === 0) this.shootRadial(15, 4);
+            } else if (hpRatio > 0.3) { // Phase 2
+                if (this.timer % 120 === 0 && typeof enemies !== 'undefined') enemies.push(new Enemy(this.x, this.y + 50, 5));
+                if (this.timer % 4 === 0) {
+                    let sweep = Math.PI/2 + Math.sin(this.timer * 0.1) * 1.0;
+                    enemyBullets.push(new Bullet(this.x, this.y, Math.cos(sweep)*10, Math.sin(sweep)*10, '#ff0055', true));
+                }
+            } else { // Phase 3 (Desperation)
+                if (this.timer % 5 === 0) {
+                    let a = Math.random() * Math.PI * 2;
+                    enemyBullets.push(new Bullet(this.x, this.y, Math.cos(a)*6, Math.sin(a)*6, '#ffffff', true));
+                }
+                if (this.timer % 30 === 0) this.shootTarget(target, 9);
             }
         }
     }
@@ -150,52 +228,39 @@ class Enemy {
     }
 
     draw() {
-        ctx.fillStyle = this.color; ctx.shadowBlur = 15; ctx.shadowColor = this.color; ctx.beginPath();
-        if (this.type === 1) { // Triangle
-            ctx.moveTo(this.x, this.y + this.radius); ctx.lineTo(this.x - this.radius, this.y - this.radius); ctx.lineTo(this.x + this.radius, this.y - this.radius);
-        } else if (this.type === 2) { // Diamond
-            ctx.moveTo(this.x, this.y - this.radius); ctx.lineTo(this.x + this.radius, this.y); ctx.lineTo(this.x, this.y + this.radius); ctx.lineTo(this.x - this.radius, this.y);
-        } else if (this.type === 3) { // Star
-            const spikes = 5;
-            for (let i = 0; i < spikes * 2; i++) {
-                const r = (i % 2 == 0) ? this.radius : this.radius / 2;
-                const a = (i * Math.PI / spikes) + (this.timer * 0.05);
-                if (i == 0) ctx.moveTo(this.x + r * Math.cos(a), this.y + r * Math.sin(a));
-                else ctx.lineTo(this.x + r * Math.cos(a), this.y + r * Math.sin(a));
+        if (this.type < 100) {
+            let imgScale = 1.6;
+            let size = this.radius * 2 * imgScale;
+            let offset = this.radius * imgScale;
+            
+            // จัดกลุ่มรูปลักษณ์ตามประเภทและหมุน 180 องศา
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(Math.PI); // หมุนลง 180 องศา
+            
+            if (this.type === 1 || this.type === 5 || this.type === 6 || this.type === 9) {
+                if (imgAlienDrone.complete) ctx.drawImage(imgAlienDrone, -offset, -offset, size, size);
+            } else if (this.type === 2 || this.type === 3 || this.type === 8) {
+                if (imgAlienCruiser.complete) ctx.drawImage(imgAlienCruiser, -offset, -offset, size, size);
+            } else {
+                if (imgAlienBomber.complete) ctx.drawImage(imgAlienBomber, -offset, -offset, size, size);
             }
-        } else if (this.type === 4) { // Rectangle
-            ctx.arc(this.x, this.y, this.radius * 0.7, 0, Math.PI * 2);
-            ctx.rect(this.x - this.radius, this.y - this.radius * 0.3, this.radius * 2, this.radius * 0.6);
-        } else if (this.type === 5) { // Kite
-            ctx.moveTo(this.x, this.y + this.radius); ctx.lineTo(this.x - this.radius / 2, this.y); ctx.lineTo(this.x, this.y - this.radius); ctx.lineTo(this.x + this.radius / 2, this.y);
-        } else if (this.type === 6) { // Dart
-            ctx.moveTo(this.x, this.y + this.radius); ctx.lineTo(this.x - this.radius / 3, this.y - this.radius); ctx.lineTo(this.x, this.y - this.radius / 2); ctx.lineTo(this.x + this.radius / 3, this.y - this.radius);
-        } else if (this.type === 7) { // Bomber Circle
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.moveTo(this.x - this.radius, this.y); ctx.lineTo(this.x + this.radius, this.y);
-        } else if (this.type === 8) { // Cross
-            ctx.rect(this.x - this.radius / 3, this.y - this.radius, this.radius / 1.5, this.radius * 2);
-            ctx.rect(this.x - this.radius, this.y - this.radius / 3, this.radius * 2, this.radius / 1.5);
-        } else if (this.type === 9) { // Oval
-            ctx.ellipse(this.x, this.y, this.radius, this.radius / 2, 0, 0, Math.PI * 2);
-        } else if (this.type === 10) { // Hexagon
-            for (let i = 0; i < 6; i++) {
-                ctx.lineTo(this.x + this.radius * Math.cos(i * Math.PI / 3), this.y + this.radius * Math.sin(i * Math.PI / 3));
-            }
-        } else if (this.type === 101) {
-            ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
-            drawCuteAnime(ctx, this.x, this.y, this.radius * 2, '#4a0000', '#ff003c', 'horns');
-            ctx.beginPath(); // Prevent clipping issues after function call
-        } else if (this.type === 102) {
-            ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
-            drawCuteAnime(ctx, this.x, this.y, this.radius * 2, '#ffffff', '#00ffff', 'halo');
-            ctx.beginPath();
-        } else if (this.type >= 103) {
-            ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
-            drawCuteAnime(ctx, this.x, this.y, this.radius * 2, '#000000', '#9900ff', 'cat');
-            ctx.beginPath();
+            
+            ctx.restore();
+        } else {
+            // Render Bosses based on Type (รูปแบบเก่าดั้งเดิม)
+            if (this.type === 101) drawBoss101(ctx, this.x, this.y, this.radius * 2);
+            else if (this.type === 102) drawBoss102(ctx, this.x, this.y, this.radius * 2);
+            else if (this.type === 103) drawBoss103(ctx, this.x, this.y, this.radius * 2);
+            else if (this.type === 104) drawBoss104(ctx, this.x, this.y, this.radius * 2);
+            else if (this.type === 105) drawBoss105(ctx, this.x, this.y, this.radius * 2);
+            else if (this.type === 106) drawBoss106(ctx, this.x, this.y, this.radius * 2);
+            else if (this.type === 107) drawBoss107(ctx, this.x, this.y, this.radius * 2);
+            else if (this.type === 108) drawBoss108(ctx, this.x, this.y, this.radius * 2);
+            else if (this.type === 109) drawBoss109(ctx, this.x, this.y, this.radius * 2);
+            else if (this.type === 110) drawBoss110(ctx, this.x, this.y, this.radius * 2);
+            else drawBoss110(ctx, this.x, this.y, this.radius * 2); // Fallback for 111+
         }
-        ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
 
         const hpRatio = this.hp / this.maxHp;
         let barY = this.type >= 100 ? this.y - this.radius - 20 : this.y - this.radius - 10;

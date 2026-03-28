@@ -97,8 +97,19 @@ class Bullet {
                 }
             }
         } else if (this.type === 5) {
-            // Wave behavior
-            this.x = this.startX + Math.sin(this.life * 0.2) * this.waveWidth * 10;
+            // Perpendicular wave behavior relative to aim angle
+            if (this.linearX === undefined) { this.linearX = this.x; this.linearY = this.y; }
+            this.linearX += this.vx;
+            this.linearY += this.vy;
+            
+            let len = Math.hypot(this.vx, this.vy) || 1;
+            let pX = -this.vy / len; // Perpendicular X
+            let pY = this.vx / len;  // Perpendicular Y
+            let sway = Math.sin(this.life * 0.2) * this.waveWidth * 10;
+            
+            this.x = this.linearX + pX * sway;
+            this.y = this.linearY + pY * sway;
+            return; // Skip normal linear addition
         }
 
         this.x += this.vx; this.y += this.vy; 
@@ -109,14 +120,48 @@ class Bullet {
         ctx.shadowColor = this.color; 
         
         if (this.isEnemy) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            let angle = (this.vx === 0 && this.vy === 0) ? Math.PI / 2 : Math.atan2(this.vy, this.vx);
+            ctx.rotate(angle);
+
             ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); 
+            if (this.color === '#ff003c') { 
+                // Target Bullet (Arrow/Dart shape)
+                ctx.moveTo(this.radius * 1.5, 0); ctx.lineTo(-this.radius, this.radius * 0.8);
+                ctx.lineTo(-this.radius * 0.3, 0); ctx.lineTo(-this.radius, -this.radius * 0.8);
+            } else if (this.color === '#ff9900' || this.color === '#ffd700') {
+                // Arc/Spread Bullet (Diamond shape)
+                ctx.moveTo(this.radius * 1.5, 0); ctx.lineTo(0, this.radius * 0.8);
+                ctx.lineTo(-this.radius * 1.5, 0); ctx.lineTo(0, -this.radius * 0.8);
+            } else if (this.color === '#555555') {
+                // Mine (Spiked Octagon)
+                for(let i=0; i<8; i++){
+                    let a = i * Math.PI / 4;
+                    let r = (i % 2 === 0) ? this.radius * 1.4 : this.radius * 0.8;
+                    if(i === 0) ctx.moveTo(r * Math.cos(a), r * Math.sin(a));
+                    else ctx.lineTo(r * Math.cos(a), r * Math.sin(a));
+                }
+            } else if (this.color === '#00f3ff' || this.color === '#00ffcc') {
+                // Tracking/Sweep Laser (Thin rectangle)
+                ctx.rect(-this.radius * 1.2, -this.radius * 0.3, this.radius * 2.4, this.radius * 0.6);
+            } else {
+                // Default Radial/Spiral (Orb with spikes)
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2); 
+            }
+            ctx.closePath();
             ctx.fill();
             ctx.shadowBlur = 0;
+            
             ctx.fillStyle = '#fff'; 
             ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius * 0.5, 0, Math.PI * 2); 
+            if (this.color === '#555555') {
+                ctx.arc(0, 0, this.radius * 0.4, 0, Math.PI * 2);
+            } else {
+                ctx.arc(0, 0, this.radius * 0.5, 0, Math.PI * 2); 
+            }
             ctx.fill();
+            ctx.restore();
         } else {
             ctx.save();
             ctx.translate(this.x, this.y);

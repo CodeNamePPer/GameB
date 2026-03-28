@@ -1,9 +1,15 @@
 // js/network.js
 
 // --- PeerJS Networking ---
-function initPeer() {
+function initPeer(customId) {
     if (peer) peer.destroy();
-    peer = new Peer();
+    
+    // Use public PeerJS server with custom ID if provided
+    if (customId) {
+        peer = new Peer(customId);
+    } else {
+        peer = new Peer();
+    }
     return peer;
 }
 
@@ -59,6 +65,7 @@ function handleNetworkData(data) {
         if (data.p2Pick >= 0 && players['p2']) players['p2'].applyBuff(data.p2Pick);
         document.getElementById('draftScreen').style.display = 'none';
         allBullets = []; enemyBullets = []; items = [];
+        bossTimer = 0;
     } else if (data.type === 'sync') {
         // Continuous Sync
         if (isHost) {
@@ -66,9 +73,13 @@ function handleNetworkData(data) {
             if (players['p2']) {
                 players['p2'].x = data.px;
                 players['p2'].y = data.py;
+                if (data.aim !== undefined) players['p2'].aimAngle = data.aim;
                 if (data.shoot && (players['p2'].shootCooldown <= 0 || players['p2'].weaponType === 3)) {
                     players['p2'].shoot();
                     players['p2'].shootCooldown = players['p2'].shootDelay;
+                }
+                if (data.ult && players['p2'].ultCharge >= 99 && !players['p2'].ultActive) {
+                    if (typeof players['p2'].activateUltimate === "function") players['p2'].activateUltimate();
                 }
             }
         } else {
@@ -89,6 +100,11 @@ function handleNetworkData(data) {
                 players['p1'].isShootingLaser = data.p1.isShootingLaser;
                 players['p1'].laserHeat = data.p1.laserHeat;
                 players['p1'].laserOverheated = data.p1.laserOverheated;
+                
+                players['p1'].ultCharge = data.p1.ultCharge;
+                players['p1'].ultActive = data.p1.ultActive;
+                players['p1'].ultTimer = data.p1.ultTimer;
+                if (data.p1.aimAngle !== undefined) players['p1'].aimAngle = data.p1.aimAngle;
             }
             if (players['p2']) {
                 players['p2'].hp = data.p2.hp; players['p2'].maxHp = data.p2.maxHp;
@@ -98,6 +114,11 @@ function handleNetworkData(data) {
                 players['p2'].isShootingLaser = data.p2.isShootingLaser;
                 players['p2'].laserHeat = data.p2.laserHeat;
                 players['p2'].laserOverheated = data.p2.laserOverheated;
+
+                players['p2'].ultCharge = data.p2.ultCharge;
+                players['p2'].ultActive = data.p2.ultActive;
+                players['p2'].ultTimer = data.p2.ultTimer;
+                if (data.p2.aimAngle !== undefined) players['p2'].aimAngle = data.p2.aimAngle;
             }
             
             // Sync Enemies
@@ -141,7 +162,9 @@ function handleNetworkData(data) {
             // Host bullets
             let hostBulls = [];
             data.hostBullets.forEach(b => {
-                hostBulls.push(new Bullet(b.x, b.y, b.vx, b.vy, b.c, false, 'p1', b.rm || 0, b.bt || 0, b.ww || 0));
+                let bull = new Bullet(b.x, b.y, b.vx, b.vy, b.c, false, 'p1', b.rm || 0, b.bt || 0, b.ww || 0);
+                if (b.bt === 6 && b.rm >= 50) bull.isNuke = true; // Recover nuke property visually
+                hostBulls.push(bull);
             });
             
             // My bullets (P2)

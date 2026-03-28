@@ -7,8 +7,11 @@ document.getElementById('singlePlayerBtn').addEventListener('click', () => {
 
 document.getElementById('hostBtn').addEventListener('click', () => {
     statusText.innerText = "Initializing Host...";
-    initPeer().on('open', id => {
-        statusText.innerHTML = `Waiting for player... <br><br><b>Your Host ID:</b> ${id}<br><span style="font-size:12px">(Share this ID with a friend)</span>`;
+    // Generate a random 4-digit Host ID (1000-9999)
+    const randomId = Math.floor(1000 + Math.random() * 9000).toString();
+    
+    initPeer(randomId).on('open', id => {
+        statusText.innerHTML = `Waiting for player... <br><br><b style="font-size: 24px;">Your Host ID: <span style="color:#39ff14">${id}</span></b><br><span style="font-size:12px">(Share this ID with a friend)</span>`;
         isHost = true;
         isMultiplayer = true;
     });
@@ -21,7 +24,7 @@ document.getElementById('hostBtn').addEventListener('click', () => {
 document.getElementById('joinBtn').addEventListener('click', () => {
     const joinId = joinIdInput.value.trim();
     if (!joinId) { statusText.innerText = "Please enter a valid Host ID."; return; }
-    
+
     statusText.innerText = "Connecting to Host...";
     initPeer().on('open', id => {
         connection = peer.connect(joinId);
@@ -66,10 +69,11 @@ document.querySelector('.control-card.selected').style.borderColor = '#f0f';
 document.querySelector('.control-card.selected').style.boxShadow = '0 0 10px #f0f';
 
 document.getElementById('confirmControlBtn').addEventListener('click', () => {
-    document.getElementById('controlMenu').style.display = 'none';
-    document.getElementById('mainMenu').style.display = 'flex';
-    // Render previews here after the menu is visible
-    renderPreviews();
+    UIAnimations.hideMenu('controlMenu', () => {
+        UIAnimations.showMenu('mainMenu', 'flex', true); // ใช้ staggering effect
+        // Render previews here after the menu is visible
+        renderPreviews();
+    });
 });
 
 document.getElementById('restartBtn').addEventListener('click', () => {
@@ -79,12 +83,39 @@ document.getElementById('restartBtn').addEventListener('click', () => {
 // Responsive scaling
 function resizeGame() {
     const container = document.getElementById('gameContainer');
-    // Calculate scale factor: we want the 600x800 container to fit exactly inside window
-    const scaleX = window.innerWidth / 600;
-    const scaleY = window.innerHeight / 800;
-    // Constrain scale to whichever is smaller so it always fits, and reduce by 10% padding
-    const scale = Math.min(scaleX, scaleY) * 0.9; 
-    container.style.transform = `scale(${scale})`;
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight;
+
+    // Mobile specific scaling - fill height exactly, adjust width proportionally
+    if (screenW < 600 || screenH / screenW > 1.2) {
+        // Portrait mode / Mobile
+        const logicalHeight = 800; // Fix game logic height to 800
+        const logicalWidth = logicalHeight * (screenW / screenH); // Proportional width
+
+        // Update logical canvas resolution
+        canvas.width = logicalWidth;
+        canvas.height = logicalHeight;
+
+        // Update CSS container physical size
+        container.style.width = logicalWidth + 'px';
+        container.style.height = logicalHeight + 'px';
+
+        // Scale to fill screen exactly
+        const scale = screenH / logicalHeight;
+        container.style.transform = `scale(${scale})`;
+    } else {
+        // PC / Landscape (Classic 600x800)
+        canvas.width = 600;
+        canvas.height = 800;
+        container.style.width = '600px';
+        container.style.height = '800px';
+
+        const scaleX = screenW / 600;
+        const scaleY = screenH / 800;
+        // Leave 5% padding on PC
+        const scale = Math.min(scaleX, scaleY) * 0.95;
+        container.style.transform = `scale(${scale})`;
+    }
 }
 
 // Listen to resize and orientation changes
